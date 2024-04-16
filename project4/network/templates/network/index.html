@@ -1,0 +1,243 @@
+
+{% extends "network/layout.html" %}
+{% load static %}
+
+{% block body %}
+    <h1>All Posts</h1>
+    
+    <!-- New Post form -->k
+    {% if user.is_authenticated %}
+        <form action="{% url 'new_post' %}" method="post">
+            {% csrf_token %}
+            <textarea id="post-content" name="content" placeholder="Write your post here"></textarea>
+            <br/>
+            <button id="submit-post" class="btn btn-primary">Post</button>
+        </form>
+    {% endif %}
+
+    <div>
+    {% for post in page_obj %}
+        <div class="post">
+            <p><strong><a href="{% url 'user_page' post.author.id %}">{{ post.author.username }}</a></strong> {% if request.user != post.author %}<button class="follow-btn" data-user-id="{{ post.author.id }}">Follow</button>{% endif %}</p>
+            <p id="post-content-{{ post.id }}">{{ post.content }}</p>
+            <p>{{ post.created_at }}</p>
+            {% if user.is_authenticated and user == post.author %}
+                <button class="edit-post-btn" data-post-id="{{ post.id }}">Edit</button>
+            {% endif %}
+            {% if user.is_authenticated and user != profile_user %}
+                {% if user in profile_user.followers.all %}
+                    <button class="unfollow-btn" data-user-id="{{ profile_user.id }}">Unfollow</button>
+                {% else %}
+                    <button class="follow-btn" data-user-id="{{ profile_user.id }}">Follow</button>
+                {% endif %}
+            {% endif %}
+            <!-- Add like and unlike buttons here -->
+            <button class="like-btn" data-post-id="{{ post.id }}">Like</button>
+            <button class="unlike-btn" data-post-id="{{ post.id }}">Unlike</button>
+            <p>Likes: <span class="likes-count">{{ post.likes.count }}</span></p>
+            
+        </div>
+    {% empty %}
+        <p>No posts yet.</p>
+    {% endfor %}
+</div>
+
+    
+
+    <!-- Pagination links -->
+    {% if page_obj.has_previous %}
+        <a href="?page=1" class="btn btn-primary">First</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-primary">Previous</a>
+    {% endif %}
+    
+    <span class="mx-2">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-primary">Next</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-primary">Last</a>
+    {% endif %}
+
+  
+    <script>
+        // Function to get CSRF token from cookies
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const editButtons = document.querySelectorAll('.edit-post-btn');
+    const likeButtons = document.querySelectorAll('.like-btn');
+    const unlikeButtons = document.querySelectorAll('.unlike-btn');
+    const followButtons = document.querySelectorAll('.follow-btn');
+    const unfollowButtons = document.querySelectorAll('.unfollow-btn');
+
+    editButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const postId = this.getAttribute('data-post-id');
+            const postContentElement = document.getElementById(`post-content-${postId}`);
+            const currentContent = postContentElement.innerText.trim();
+
+            const textarea = document.createElement('textarea');
+            textarea.value = currentContent;
+
+            const saveButton = document.createElement('button');
+            saveButton.textContent = 'Save';
+            saveButton.addEventListener('click', function() {
+                const newContent = textarea.value;
+
+                // Send an asynchronous request to update the post content
+                fetch(`/post/${postId}/edit/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken') // Include CSRF token
+                    },
+                    body: JSON.stringify({ content: newContent })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Update the post content on the page
+                        postContentElement.innerText = newContent;
+                    } else {
+                        console.error('Failed to update post content');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+
+            // Replace the post content with the editable textarea and save button
+            postContentElement.innerHTML = '';
+            postContentElement.appendChild(textarea);
+            postContentElement.appendChild(saveButton);
+        });
+    });
+
+    
+    followButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            fetch(`/follow/${userId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken') 
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Change button to unfollow button
+                    this.classList.remove('follow-btn');
+                    this.classList.add('unfollow-btn');
+                    this.textContent = 'Unfollow';
+                } else {
+                    console.error('Failed to follow user');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+    
+   
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add event listener to unfollow buttons
+        const unfollowButtons = document.getElementsByClassName('unfollow-btn');
+        Array.from(unfollowButtons).forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                fetch(`/unfollow/${userId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken') 
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                       
+                        this.textContent = 'Follow';
+                        this.classList.remove('unfollow-btn');
+                        this.classList.add('follow-btn');
+                    } else {
+                        console.error('Failed to unfollow user');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        });
+    });
+
+
+    
+
+    likeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const postId = this.getAttribute('data-post-id');
+            fetch(`/post/${postId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken') 
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Update the like count on the page
+                    const likesCount = this.parentElement.querySelector('.likes-count');
+                    if (!this.disabled) {
+                        likesCount.textContent = parseInt(likesCount.textContent) + 1;
+                        this.disabled = true; // Disable the like button after click
+                        // Enable the unlike button
+                        const unlikeBtn = this.parentElement.querySelector('.unlike-btn');
+                        unlikeBtn.disabled = false;
+                    }
+                } else {
+                    console.error('Failed to like the post');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+
+    unlikeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const postId = this.getAttribute('data-post-id');
+            fetch(`/post/${postId}/unlike/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken') 
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Update the like count on the page
+                    const likesCount = this.parentElement.querySelector('.likes-count');
+                    if (!this.disabled) {
+                        likesCount.textContent = parseInt(likesCount.textContent) - 1;
+                        this.disabled = true; // Disable the unlike button after click
+                        // Enable the like button
+                        const likeBtn = this.parentElement.querySelector('.like-btn');
+                        likeBtn.disabled = false;
+                    }
+                } else {
+                    console.error('Failed to unlike the post');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+});
+    </script>
+{% endblock %}

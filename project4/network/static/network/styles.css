@@ -1,0 +1,25 @@
+.post p strong {
+    color: #3366cc; /* Change the color as desired */
+    font-weight: bold;
+}
+
+.follow-btn {
+    background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    padding: 5px 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+}
+
+.follow-btn:hover {
+    background-color: #45a049;
+}
+
+.follow-btn:active {
+    background-color: #3e8e41;
+}

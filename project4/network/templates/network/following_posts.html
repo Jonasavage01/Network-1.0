@@ -1,0 +1,27 @@
+{% extends "network/layout.html" %}
+{% load static %}
+
+{% block body %}
+    <h1>Following Posts</h1>
+
+    <div>
+
+        <h2>Following: {{ following_count }}</h2>
+        <ul>
+            {% for followed in following %}
+                <li>{{ followed.username }}</li>
+            {% endfor %}
+        </ul>
+
+        {% for post in following_posts %}
+            <div class="post">
+                <p>{{ post.author.username }}</p>
+                <p>{{ post.content }}</p>
+                <p>{{ post.created_at }}</p>
+             
+            </div>
+        {% empty %}
+            <p>No posts from followed users.</p>
+        {% endfor %}
+    </div>
+{% endblock %}
